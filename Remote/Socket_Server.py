@@ -14,11 +14,11 @@ PWM_CHIP = 0
 PWM_PIN = 0
 FREQUENCY_HZ = 3800
 DUTY_CYCLE_PERCENT = 50
-p = GPIO.PWM(PWM_CHIP, PWM_PIN, FREQUENCY_HZ, DUTY_CYCLE_PERCENT)    # new PWM on channel=LED_gpio frequency=38KHz
+#p = GPIO.PWM(PWM_CHIP, PWM_PIN, FREQUENCY_HZ, DUTY_CYCLE_PERCENT)    # new PWM on channel=LED_gpio frequency=38KHz
 
 
 PORT = 5050
-SERVER_IP = "192.168.8.190" # "192.168.0.37" # "192.168.8.164"
+SERVER_IP = "192.168.8.21" # 
 #SERVER_IP = socket.gethostbyname(socket.gethostname())
 ADDR = (SERVER_IP, PORT)
 HEADER = 10 # 64
@@ -47,40 +47,48 @@ class socket_ir:
         print("new connection", addr, "connected")
         connected = True
         while connected: 
-            msg_length = conn.recv(HEADER).decode(FORMAT) #wait until we know how long the message will be
-            if msg_length : 
-                msg_length = int(msg_length)
+            msg_length = conn.recv(HEADER).decode(FORMAT) #wait until we know how long the next message will be
+            if msg_length : #if a message was recieved
+                msg_length = int(msg_length) #dicate how long we will wait based on the msg_length value that was sent
                 msg = conn.recv(msg_length) #wait until we have recieved the message 
-                
-                if msg == DISCONNECT_MSG or msg == DISCONNECT_MSG_ENCODED: #check if the message is a disconnect message 
-                    print("disconnecting and closing socket ")
+                try: 
+                    if msg == DISCONNECT_MSG or msg == DISCONNECT_MSG_ENCODED: #check if the message is a disconnect message 
+                        print("disconnecting and closing socket ")
+                        connected = False 
+                        
+                    #elif msg == KILL_MSG or msg == KILL_MSG_ENCODED:
+                    #    thread_queue.put("end")
+                    #    connected = False
+                    #    print("killing loop")
+                        
+                    else: #process the nessage
+                        command = numpy.array(pickle.loads(msg)) #decode the message
+                        #print(command)
+                        gpio_command = threading.Thread(target=self.flash_led, args=(command, )) #the , after the command is really important!! needed to tell the thread module that the command is an array and not a series of seperate inputs 
+                        self.thread_queue.join() #wait until the queue is empty. important incase a command is being processed while this is recieved.
+                        gpio_command.start() # start command
+
+                except:
+                    print("error recieving message, neither pickle or preset message")
                     connected = False 
+
+                finally: #if the connection was sucesssful or not it will tell the client that the message was recieved  
+                    conn.send("Msg recieved".encode(FORMAT))
                     
-                #elif msg == KILL_MSG or msg == KILL_MSG_ENCODED:
-                #    thread_queue.put("end")
-                #    connected = False
-                #    print("killing loop")
-                    
-                else: 
-                    command = numpy.array(pickle.loads(msg))
-                    #print(command)
-                    gpio_command = threading.Thread(target=self.flash_led, args=(command, )) #the , after the command is really important!! needed to tell the thread module that the command is an array and not a series of seperate inputs 
-                    self.thread_queue.join() #wait until the queue is empty. important incase a command is being processed while this is recieved.
-                    gpio_command.start() # start command
-        
-                conn.send("Msg recieved".encode(FORMAT))
         conn.close()
 
     def flash_led(self, command):
         self.thread_queue.append('1') # add something to the queue as an indicator to show the process is running. This is to stop overlaps
-        alternator = True
+        alternator = True # 
         for i in command:
             if alternator is True:
                 self.pwm.start()
-                time.sleep(i)
+                time.sleep(i) #+1.4e-6) # need to minus time taken to start up 
             else:
                 self.pwm.stop()
-                time.sleep(i)
+                time.sleep(i) #-1.4e-6)
+                
+            alternator = not(alternator)
     
         self.pwm.stop()
         self.thread_queue.popleft() # remove item from queue to allow something to be inputted
