@@ -1,0 +1,10 @@
+Metadata-Version: 1.0
+Name: mpv
+Version: 0.1
+Summary: A python interface to the mpv media player
+Home-page: https://github.com/jaseg/python-mpv
+Author: jaseg
+Author-email: github@jaseg.net
+License: AGPLv2
+Description: UNKNOWN
+Platform: UNKNOWN
