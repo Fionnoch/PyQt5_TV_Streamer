@@ -94,7 +94,7 @@ class IR_reciever:
         self.delay_time = delay_time
         self.q = thread_queue(maxsize = 1) #create queue for communicating with ir thread. this will allow changing remote functions
         #print(q.qsize())
-        self.socket_class = Send_Command('192.168.8.21', 21) #localhost, port)
+        self.socket_class = Send_Command('192.168.8.21', 5050) #localhost, port)
 
     def change_screen(self, screen_class): 
         self.q.put(screen_class) #this puts the sceen class into the queue so that it will be detected 
