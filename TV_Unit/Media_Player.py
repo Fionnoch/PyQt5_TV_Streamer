@@ -38,13 +38,6 @@ import socket
 
 ir_gpio = 5 # pin name = SCL.0 wPi = 1 GPIO = 11
 
-PWM_chip = 0
-PWM_pin = 0 # middle pin of serial 
-frequency_Hz = 3800
-Duty_Cycle_Percent = 50
-p = GPIO.PWM(PWM_chip, PWM_pin, frequency_Hz, Duty_Cycle_Percent)    # new PWM on channel=LED_gpio frequency=38KHz
-
-
 GPIO.setmode(GPIO.BOARD)  # set up BOARD BCM SUNXI numbering
 #GPIO.setup(LED_gpio, GPIO.OUT)    # set pin as an output (LED)
 
@@ -94,7 +87,7 @@ class IR_reciever:
         self.delay_time = delay_time
         self.q = thread_queue(maxsize = 1) #create queue for communicating with ir thread. this will allow changing remote functions
         #print(q.qsize())
-        self.socket_class = Send_Command('192.168.8.21', 21) #localhost, port)
+        self.socket_class = Send_Command('192.168.8.21', 5050) #localhost, port)
 
     def change_screen(self, screen_class): 
         self.q.put(screen_class) #this puts the sceen class into the queue so that it will be detected 
@@ -188,7 +181,7 @@ class Send_Command:
         if(sock.connect_ex(self.server_address) == 111):
             print('Could not create connection to base unit. Check connection.')
             sock.close()
-            return(1)
+            #return(1)
         else:
             try:
                 print ('connecting to %s port %s' % self.server_address)
@@ -218,12 +211,12 @@ class Send_Command:
                     #print ('amount recieved = ', amount_recieved)
             except:
                 print("could not connect/send codes check connection")
-                sock.close()
-                return (1)
+                #sock.close()
+                #return (1)
             finally:
                 print ('closing socket')
                 sock.close()
-                return (1)
+                #return (1)
                
 class Ui_video_screen(QWidget):
     
