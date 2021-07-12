@@ -26,7 +26,10 @@ from PyQt5 import QtWidgets
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
-import OPi.GPIO as GPIO
+#import OPi.GPIO as GPIO
+
+import pickle
+
 from time import sleep
 from time import perf_counter
 import threading
@@ -36,19 +39,9 @@ import locale
 
 import socket
 
-ir_gpio = 5 # pin name = SCL.0 wPi = 1 GPIO = 11
-
-GPIO.setmode(GPIO.BOARD)  # set up BOARD BCM SUNXI numbering
-#GPIO.setup(LED_gpio, GPIO.OUT)    # set pin as an output (LED)
-
-GPIO.setup(ir_gpio, GPIO.IN)
-
 # ===================================================================================================
 # IR controls
 
-#wait_time = 4523982e-9 * 1.5 # 60e-3 # in seconds should be just higher than the longest wait. think longest is about 5ms. noted from looking theough sky remote commands
-wait_time = 6e-3 # in seconds should be just higher than the longest wait. think longest is about 5ms. noted from looking theough sky remote commands
-wait_time = 1e-2
 
 ir_keys_dict = { # in nanosecs
     'right': numpy.array([0.004273, 0.004527, 0.000435, 0.001788, 0.000553, 0.001568, 0.000650, 0.001661, 0.000498, 0.000498, 0.000651, 0.000486, 0.000564, 0.000620, 0.000599, 0.000496, 0.000490, 0.000487, 0.000694, 0.001671, 0.000442, 0.001704, 0.000644, 0.001608, 0.000577, 0.000570, 0.000493, 0.000566, 0.000567, 0.000518, 0.000588, 0.000491, 0.000646, 0.000565, 0.000484, 0.000487, 0.000733, 0.001488, 0.000646, 0.000484, 0.000565, 0.000604, 0.000535, 0.000579, 0.000566, 0.001605, 0.000673, 0.001552, 0.000568, 0.000566, 0.000565, 0.001646, 0.000566, 0.000483, 0.000644, 0.001573, 0.000752, 0.001458, 0.000726, 0.001658, 0.000499, 0.000496, 0.000647, 0.000484, 0.000565, 0.001636, 0.000581]) 
@@ -81,10 +74,24 @@ ir_keys_length = {
 }
 
 class IR_reciever:
+    #core funtionality in ir-test
+    #Differences are: 
+    #   1. command recieved in read_command function gets sent to translate_command
+    #           this function checks if its a media control specific (i.e app up, down, enter, ect.)
+    #   2. if command isn't a media control specific is sends it to base unit to be repeated 
     
     def __init__(self, pin_num, delay_time):
         self.pin_num = pin_num
         self.delay_time = delay_time
+        
+        import OPi.GPIO as GPIO
+        import threading
+        from time import perf_counter
+        self.GPIO = GPIO
+        self.GPIO.setmode(GPIO.BOARD) 
+        self.GPIO.setup(ir_gpio, GPIO.IN)
+        
+        self.thread_flag_event = threading.Event()
         self.q = thread_queue(maxsize = 1) #create queue for communicating with ir thread. this will allow changing remote functions
         #print(q.qsize())
         self.socket_class = Send_Command('192.168.8.21', 5050) #localhost, port)
@@ -93,9 +100,9 @@ class IR_reciever:
         self.q.put(screen_class) #this puts the sceen class into the queue so that it will be detected 
 
     def wait_for_falling_edge(self):
-
-        while thread_flag_event.is_set() : #uses threading event to dictate when the loop should be killed
-            if GPIO.input(ir_gpio) == 0:
+        self.thread_flag_event.set()
+        while self.thread_flag_event.is_set() : #uses threading event to dictate when the loop should be killed
+            if self.GPIO.input(ir_gpio) == 0:
                 self.read_command(0)
                 
             if self.q.full():
@@ -110,12 +117,15 @@ class IR_reciever:
                 #    print('video screen message detected ')
                 
     def wait_for_rising_edge(self):
-        while thread_flag_event.is_set() :
-            if GPIO.input(ir_gpio) == 1:
+        self.thread_flag_event.set()
+        while self.thread_flag_event.is_set() :
+            if self.GPIO.input(ir_gpio) == 1:
                 self.read_command(1)
             
-    def stop_detection(self):
-        self.run_in_background == False
+    def stop_detection(self, clean_GPIO):
+        self.thread_flag_event.clear()
+        if clean_GPIO is True:
+            self.GPIO.cleanup()
 
     def read_command(self, start_val):
         #print("input detected")
@@ -127,7 +137,7 @@ class IR_reciever:
         
         while perf_counter() < IR_timer: #waits until a timer expires. the timer refers to the time after a command has not been passed. this is readjusted instide the code to make sure the entire command is captured
             #print(GPIO.input(ir_gpio)) #dont debug with this, it slows everything down too much and it misses all the inputs
-            if GPIO.input(ir_gpio) != previousValue:  # Waits until change in state occurs.
+            if self.GPIO.input(ir_gpio) != previousValue:  # Waits until change in state occurs.
                 # Records the current time              maybe change to just record microseconds
                 end_of_event = perf_counter() #records the end time of a signal change. the first start_of_event is above the while loop so from here out we need to record just hte$
                 # Calculate time in between pulses
@@ -159,8 +169,7 @@ class IR_reciever:
             if numpy.allclose(np_command, ir_keys_dict[i], rtol=1 , atol= ir_keys_tolerance_dict[i]): #checks if the arrays are the same within a tolerance
                 self.screen_choice_class.button_control(i)
                 break
-            count = count+1
-            
+            count = count+1   
             
         if count == len(ir_keys_dict):
             #checked whether the command 
@@ -172,50 +181,57 @@ class IR_reciever:
 # After the connection is established, data can be sent through the socket with sendall() and received with recv(), just as in the server.
 class Send_Command:
     
-    def __init__(self, localhost, port):
+    def __init__(self, localhost, port): 
+        
+        self.HEADER = 10 # 64
+        self.FORMAT = 'utf-8'
+        self.DISCONNECT_MSG = "!DISCONNECT"
+        self.KILL_MSG = "!CLOSE"  
         self.server_address = (localhost, port)
+        self.client_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    def send(self, msg):
+        message = msg.encode(self.FORMAT)
+        msg_length = len(message)
+        send_length = str(msg_length).encode(self.FORMAT)
+        send_length += b' ' * (self.HEADER - len(send_length))
+        self.client.send(send_length)
+        self.client.send(message)
+        
+        print(self.client.recv(50).decode(self.FORMAT))
 
     def SendIR(self, on_off_array):  # this sends the data
-        array_size_bytes =  on_off_array.size * on_off_array.itemsize
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        if(sock.connect_ex(self.server_address) == 111):
+        self.client_sock.connect(self.server_address)
+        if(self.client_sock.connect_ex(self.server_address) == 111):
             print('Could not create connection to base unit. Check connection.')
-            sock.close()
+            self.client_sock.close()
             #return(1)
         else:
             try:
+                #----- send data ------
+                message = pickle.dumps(on_off_array) #pickle converts to byte
+                #message = on_off_array.encode(self.FORMAT)
+                msg_length = len(message)
+                send_length = str(msg_length).encode(self.FORMAT)
+                send_length += b' ' * (self.HEADER - len(send_length))
+                
                 print ('connecting to %s port %s' % self.server_address)
-                # Send data
-                #print('sending: ', on_off_array)
-                message = on_off_array + ' e'
-                sock.sendall(message.encode('utf-8'))
+                
+                self.client_sock.send(send_length) #send the length of the command 
+                self.client_sock.send(message)               
+                print(self.client_sock.recv(50).decode(self.FORMAT))
+                
+                self.send (self.DISCONNECT_MSG) #tell the server to stop listening for this command
 
                 #print('sent data')
-
-                #buff_length = len(message)
-
-                # not looking for a response yet. possible option for debugging
-                # Look for the response
-                amount_received = 0
-                amount_expected = len('done')
-                #amount_expected = len(message)
-
-                #wait here until data is recieved. currently this is running before data and is causing the system to crash
-                #print('waiting for response')
-                while (amount_received < amount_expected): #need to wait until all data is recived by otherside before closing:
-                    #print('waiting for return')
-                    data = sock.recv(amount_expected)
-                    #print('length of data = ', len(data))
-                    amount_received += len(data)
-                    #print ( 'received "%s"' % data.decode('utf-8'))
-                    #print ('amount recieved = ', amount_recieved)
+                
             except:
                 print("could not connect/send codes check connection")
                 #sock.close()
                 #return (1)
             finally:
                 print ('closing socket')
-                sock.close()
+                self.client_sock.close()
                 #return (1)
                
 class Ui_video_screen(QWidget):
@@ -652,9 +668,10 @@ if __name__ == "__main__":
 
     try:
         #-------initialise IR remote
+        wait_time = 6e-3 # in seconds should be just higher than the longest wait. think longest is about 5ms. noted from looking theough sky remote commands
+        ir_gpio = 5
+        
         gpio_input = IR_reciever(ir_gpio, wait_time)  #initialte the function by inputting the input pin number and the wait time (longest time between individual pulses
-        thread_flag_event = threading.Event() 
-        thread_flag_event.set()
         thread = threading.Thread(target = gpio_input.wait_for_falling_edge) #place this into a thread so that it can run in parallel with the 
         thread.start() 
 
@@ -670,7 +687,9 @@ if __name__ == "__main__":
                         
     
     except KeyboardInterrupt:
-        thread_flag_event.clear() #tell the thread to shut down
         print("")
         print("program stopping") 
-        GPIO.cleanup()
+        
+    finally: 
+        gpio_input.stop_detection(True) #stop the ir funcion and clean up the gpio's so they dont block in future
+        thread.join()
