@@ -88,6 +88,7 @@ class socket_ir:
 
     def flash_led(self, command):
         #self.thread_queue.append('1') # add something to the queue as an indicator to show the process is running. This is to stop overlaps
+        print("flashing led")
         alternator = True # 
         for i in command:
             if alternator is True:
@@ -95,12 +96,13 @@ class socket_ir:
                 time.sleep(i) #+1.4e-6) # need to minus time taken to start up 
             else:
                 self.pwm.stop_pwm()
-                time.sleep(i) #-1.4e-6)
+                time.sleep(i) #+1.4e-6)
                 
             alternator = not(alternator)
     
         self.pwm.stop_pwm()
         #self.thread_queue.popleft() # remove item from queue to allow something to be inputted
+        print("finished flashing LED")
 
     def start(self): # issue where the code waits on the server.listen() line even when the function has been stopped in the main function. when its stopped it waits on the server.listen line and then when it excecutes it then kills the message midway causeing an error on the client side  
         server.listen() #wait for input 
