@@ -120,12 +120,11 @@ class Send_Command:
 
     def SendIR(self, on_off_array):  # this sends the data
         #self.client_sock.connect(self.server_address)
-        print("sending: ", on_off_array)
+
         if(self.client_sock.connect_ex(self.server_address) == 0 or 106): # 0 means the connection was successful 
             try:
                 #----- send data ------
                 message = self.pickle.dumps(on_off_array) #pickle converts to byte
-                
                 #message = on_off_array.encode(self.FORMAT)
                 msg_length = len(message)
                 send_length = str(msg_length).encode(self.FORMAT)
