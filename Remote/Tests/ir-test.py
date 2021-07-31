@@ -1,6 +1,6 @@
 
 from time import sleep
-from time import perf_counter
+from time import perf_counter, perf_counter_ns
 import threading
 
 # ===================================================================================================
@@ -62,9 +62,9 @@ class IR_reciever:
         
         len_command = len(command)
           
-        if len_command> 10:
+        if len_command> 2:
             print("finished event detect, lengh of command = ", len(command), "  command recorded = ")
-            print(command)
+            print(command, 5)
             print("")
 
 if __name__ == "__main__":
@@ -79,7 +79,7 @@ if __name__ == "__main__":
         print("running program press ctrl+c to stop")
         while True:
             sleep(5)
-            print("running main loop")
+            #print("running main loop")
                         
     except KeyboardInterrupt:
         print("")

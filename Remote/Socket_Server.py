@@ -12,7 +12,7 @@ import OPi.GPIO as GPIO
 
 PWM_CHIP = 0
 PWM_PIN = 0
-FREQUENCY_HZ = 3800
+FREQUENCY_HZ = 3900
 DUTY_CYCLE_PERCENT = 50
 #p = GPIO.PWM(PWM_CHIP, PWM_PIN, FREQUENCY_HZ, DUTY_CYCLE_PERCENT)    # new PWM on channel=LED_gpio frequency=38KHz
 
@@ -42,7 +42,7 @@ class socket_ir:
         self.listening_for_connection = True
         self.pwm = GPIO.PWM(PWM_CHIP, PWM_PIN, FREQUENCY_HZ, DUTY_CYCLE_PERCENT) 
         self.thread_queue = deque() #set a queue that will be used to make sure that IR commands are finished before another one is sent
-
+        self.event = threading.Event()
 
     def handle_client(self, conn, addr):
         print("new connection", addr, "connected")
@@ -93,10 +93,13 @@ class socket_ir:
         for i in command:
             if alternator is True:
                 self.pwm.start_pwm()
-                time.sleep(i) #+1.4e-6) # need to minus time taken to start up 
+                self.pwm.enable()
+                #time.sleep(i) #+1.4e-6) # need to minus time taken to start up 
+                self.event.wait(i)
             else:
                 self.pwm.stop_pwm()
-                time.sleep(i) #+1.4e-6)
+                #time.sleep(i) #+1.4e-6)
+                self.event.wait(i)
                 
             alternator = not(alternator)
     

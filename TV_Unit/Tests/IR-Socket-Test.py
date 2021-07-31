@@ -173,4 +173,3 @@ if __name__ == "__main__":
     finally: 
         gpio_input.stop_detection(True) #stop the ir funcion and clean up the gpio's so they dont block in future
         thread.join()
-        
