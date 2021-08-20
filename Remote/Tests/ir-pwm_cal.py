@@ -4,7 +4,7 @@ from time import perf_counter, perf_counter_ns
 import threading
 
 import OPi.GPIO as GPIO 
-
+ 
 class ir:
     
     def __init__(self):
