@@ -38,7 +38,7 @@ class socket_ir:
         
         PWM_CHIP = 0
         PWM_PIN = 0
-        FREQUENCY_HZ = 38000
+        FREQUENCY_HZ = 38500
         DUTY_CYCLE_PERCENT = 50
         POLARITY = False
         self.listening_for_connection = True
