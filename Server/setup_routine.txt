@@ -1,4 +1,5 @@
 sudo apt install python3-pip
+sudo apt install setuptools
 
 git clone https://github.com/Fionnoch/OPi.GPIO.git
 sudo python3 setup.py install
