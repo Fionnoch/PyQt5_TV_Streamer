@@ -13,8 +13,8 @@ pwm = GPIO.PWM(PWM_CHIP, PWM_PIN, FREQUENCY_HZ, DUTY_CYCLE_PERCENT)
   
 # code snippet whose execution time is to be measured 
 mycode = ''' 
-def tutn_on_pwm(): 
-    pwm.start() 
+def turn_on_pwm(): 
+    pwm.duty_cycle(0) 
 '''
   
 # timeit statement 

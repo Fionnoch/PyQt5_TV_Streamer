@@ -33,13 +33,13 @@ class ir:
         for i in command:
             if alternator is True:
                 #start = perf_counter_ns() 
-                self.pwm.start_pwm()
+                self.pwm.duty_cycle(50)
                 #time.sleep(i+on_adjust) # need to minus time taken to start up 
                 self.event.wait(i)
                 #while perf_counter_ns() - start + on_adjust <= i:
                 #    pass
             else:
-                self.pwm.stop_pwm()
+                self.pwm.duty_cycle(0)
                 #time.sleep(i+off_adjust)
                 self.event.wait(i)
                 #while perf_counter_ns() - start + off_adjust <= i:
@@ -47,7 +47,7 @@ class ir:
                 
             alternator = not(alternator)
     
-        self.pwm.stop_pwm()
+        self.pwm.duty_cycle(0)
         #self.thread_queue.popleft() # remove item from queue to allow something to be inputted
         print("finished flashing LED")
 
@@ -60,8 +60,16 @@ if __name__ == "__main__":
         wait_time = 6e-3 # in seconds should be just higher than the longest wait. think longest is about 5ms. noted from looking theough sky remote commands
         ir_gpio = 5 # pin 
         calibration = ir()
-        test_command = [.02, .02, .02, .02, .02, 
-                        .02, .02, .02, .02, .02 ]
+        #test_command = [.03, .03, .03, .03, 
+        #                .02, .02, .02, .02,
+        #                .01, .01, .01, .01 ]
+        test_command = [0.0041432240000176535, 0.004432716000110304, 0.0005087789999151937, 0.0017069969999283785, 0.0004839040000206296, 0.0017913699999780874, 0.0004982780000091225]
+        
+        #test_command = [.001, .001, .0009, .0009,  
+        #                .0008, .0008, .0007, .0007, 
+        #                .0006, .0006, .0005, .0005,
+        #                .0004, .0004, .0003, .0003,]
+        
         wait_time = 5
         
         test = [38000, 38000, 38000] #range(37900, 38100, 100)

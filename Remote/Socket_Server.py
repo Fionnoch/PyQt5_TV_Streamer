@@ -7,13 +7,14 @@ from collections import deque
 
 import numpy
 import time
+from time import perf_counter_ns
 
 import OPi.GPIO as GPIO 
 
-PWM_CHIP = 0
-PWM_PIN = 0
-FREQUENCY_HZ = 3900
-DUTY_CYCLE_PERCENT = 50
+#PWM_CHIP = 0
+#PWM_PIN = 0
+#FREQUENCY_HZ = 38000
+#DUTY_CYCLE_PERCENT = 50
 #p = GPIO.PWM(PWM_CHIP, PWM_PIN, FREQUENCY_HZ, DUTY_CYCLE_PERCENT)    # new PWM on channel=LED_gpio frequency=38KHz
 
 
@@ -37,10 +38,13 @@ class socket_ir:
         
         PWM_CHIP = 0
         PWM_PIN = 0
-        FREQUENCY_HZ = 3800
+        FREQUENCY_HZ = 38000
         DUTY_CYCLE_PERCENT = 50
+        POLARITY = False
         self.listening_for_connection = True
-        self.pwm = GPIO.PWM(PWM_CHIP, PWM_PIN, FREQUENCY_HZ, DUTY_CYCLE_PERCENT) 
+        self.pwm = GPIO.PWM(PWM_CHIP, PWM_PIN, FREQUENCY_HZ, DUTY_CYCLE_PERCENT, POLARITY) 
+        self.pwm.start_pwm() # enable the PWM 
+        self.pwm.duty_cycle(0) # set pwm to 0. i.e turn it off
         self.thread_queue = deque() #set a queue that will be used to make sure that IR commands are finished before another one is sent
         self.event = threading.Event()
 
@@ -91,19 +95,22 @@ class socket_ir:
         print("flashing led")
         alternator = True # 
         for i in command:
-            if alternator is True:
-                self.pwm.start_pwm()
-                self.pwm.enable()
+            if alternator is True: #time on
+                self.pwm.duty_cycle(50)
+                #self.pwm.enable() # no longer used
                 #time.sleep(i) #+1.4e-6) # need to minus time taken to start up 
                 self.event.wait(i)
+                #while perf_counter_ns() <= half_phase_timer: # this is very intensive on the cpu 
+				#    pass #do nothing until the time is reached. N.B the calculations must be done outside the while statement as it slows things down a lot otherwise 
+
             else:
-                self.pwm.stop_pwm()
+                self.pwm.duty_cycle(0)
                 #time.sleep(i) #+1.4e-6)
                 self.event.wait(i)
                 
             alternator = not(alternator)
     
-        self.pwm.stop_pwm()
+        self.pwm.duty_cycle(0)
         #self.thread_queue.popleft() # remove item from queue to allow something to be inputted
         print("finished flashing LED")
 
@@ -122,6 +129,10 @@ class socket_ir:
         self.listening_for_connection = False
         server.shutdown(socket.SHUT_RD)
         server.close()
+        self.pwm.stop_pwm()
+        self.pwm.pwm_close()
+        
+        #conn.send("Msg recieved".encode(FORMAT))
 
 if __name__ == "__main__":
     try:
