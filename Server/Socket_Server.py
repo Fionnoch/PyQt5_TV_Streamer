@@ -7,16 +7,9 @@ from collections import deque
 
 import numpy
 import time
-from time import perf_counter_ns
+from time import perf_counter, perf_counter_ns
 
 import OPi.GPIO as GPIO 
-
-#PWM_CHIP = 0
-#PWM_PIN = 0
-#FREQUENCY_HZ = 38000
-#DUTY_CYCLE_PERCENT = 50
-#p = GPIO.PWM(PWM_CHIP, PWM_PIN, FREQUENCY_HZ, DUTY_CYCLE_PERCENT)    # new PWM on channel=LED_gpio frequency=38KHz
-
 
 PORT = 5050
 SERVER_IP = "192.168.8.21" # 
@@ -92,22 +85,24 @@ class socket_ir:
 
     def flash_led(self, command):
         #self.thread_queue.append('1') # add something to the queue as an indicator to show the process is running. This is to stop overlaps
+        command_ns = command + perf_counter_ns()
         print("flashing led")
         alternator = True # 
-        for i in command:
+        #for i in command:
+        for i in command_ns:
             if alternator is True: #time on
                 self.pwm.duty_cycle(50)
                 #self.pwm.enable() # no longer used
                 #time.sleep(i) #+1.4e-6) # need to minus time taken to start up 
                 #self.event.wait(i)
-                while perf_counter_ns() <= i: # this is very intensive on the cpu 
+                while perf_counter() <= i: # this is very intensive on the cpu 
                     pass #do nothing until the time is reached. N.B the calculations must be done outside the while statement as it slows things down a lot otherwise 
 
             else:
                 self.pwm.duty_cycle(0)
                 #time.sleep(i) #+1.4e-6)
                 #self.event.wait(i)
-                while perf_counter_ns() <= i: # this is very intensive on the cpu 
+                while perf_counter() <= i: # this is very intensive on the cpu 
                     pass #do nothing until the time is reached. N.B the calculations must be done outside the while statement as it slows things down a lot otherwise 
                 
             alternator = not(alternator)

@@ -67,13 +67,7 @@ class IR_reciever:
                 IR_timer = perf_counter() + wait_time #resets counter
                 previousValue = not previousValue #value #changes previous value to current value to see if there is a change
                 
-        #print("finished event detect, lengh of command = ", len(command), "  command recorded = ")
-        #print(command)
-        #print("")
-        
         len_command = len(command)
-        #print("length of command = ", len_command)
-          
         if len_command > 6:
             self.send_ir_command(command) #compare value
        
@@ -97,14 +91,8 @@ class IR_reciever:
                 command.append(command_length)
                 IR_timer = perf_counter_ns() + wait_time_ns #resets counter
                 previousValue = not previousValue #value #changes previous value to current value to see if there is a change
-                
-        #print("finished event detect, lengh of command = ", len(command), "  command recorded = ")
-        #print(command)
-        #print("")
         
         len_command = len(command)
-        #print("length of command = ", len_command)
-          
         if len_command > 6:
             self.send_ir_command(command) #compare value
         
