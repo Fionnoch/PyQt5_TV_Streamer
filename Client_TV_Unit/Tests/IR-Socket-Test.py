@@ -1,5 +1,5 @@
 
-from time import sleep
+from time import perf_counter_ns, sleep
 from time import perf_counter
 import threading
 
@@ -31,13 +31,15 @@ class IR_reciever:
         self.thread_flag_event.set()
         while self.thread_flag_event.is_set() : #uses threading event to dictate when the loop should be killed
             if self.GPIO.input(ir_gpio) == 0:
-                self.read_command(0)
+                #self.read_command(0)
+                self.read_command_ns(0)
                 
     def wait_for_rising_edge(self):
         self.thread_flag_event.set()
         while self.thread_flag_event.is_set() :
             if self.GPIO.input(ir_gpio) == 1:
-                self.read_command(1)
+                #self.read_command(1)
+                self.read_command_ns(1)
             
     def stop_detection(self, clean_GPIO):
         self.socket_class.send_disconnect()
@@ -50,7 +52,6 @@ class IR_reciever:
         command = []
         start_of_event = perf_counter()
         IR_timer = start_of_event + wait_time #make it extra long to stop the loop exiting premiturely. value will be reset inside loop
-        
         previousValue = bool(start_val)
         
         while perf_counter() < IR_timer: #waits until a timer expires. the timer refers to the time after a command has not been passed. this is readjusted instide the code to make sure the entire command is captured
@@ -62,11 +63,39 @@ class IR_reciever:
                 command_length = end_of_event - start_of_event
                 #print(command_length)
                 start_of_event = perf_counter() #Resets the start time
-
                 command.append(command_length)
-
                 IR_timer = perf_counter() + wait_time #resets counter
-
+                previousValue = not previousValue #value #changes previous value to current value to see if there is a change
+                
+        #print("finished event detect, lengh of command = ", len(command), "  command recorded = ")
+        #print(command)
+        #print("")
+        
+        len_command = len(command)
+        #print("length of command = ", len_command)
+          
+        if len_command > 6:
+            self.send_ir_command(command) #compare value
+       
+    def read_command_ns(self, start_val):
+        #print("input detected")
+        command = []
+        start_of_event = perf_counter_ns()
+        wait_time_ns = int(wait_time*1e9)
+        IR_timer = start_of_event + wait_time_ns #make it extra long to stop the loop exiting premiturely. value will be reset inside loop
+        previousValue = bool(start_val)
+        
+        while perf_counter_ns() < IR_timer: #waits until a timer expires. the timer refers to the time after a command has not been passed. this is readjusted instide the code to make sure the entire command is captured
+            #print(GPIO.input(ir_gpio)) #dont debug with this, it slows everything down too much and it misses all the inputs
+            if self.GPIO.input(ir_gpio) != previousValue:  # Waits until change in state occurs.
+                # Records the current time              maybe change to just record microseconds
+                end_of_event = perf_counter_ns() #records the end time of a signal change. the first start_of_event is above the while loop so from here out we need to record just hte$
+                # Calculate time in between pulses
+                command_length = end_of_event - start_of_event
+                #print(command_length)
+                start_of_event = perf_counter_ns() #Resets the start time
+                command.append(command_length)
+                IR_timer = perf_counter_ns() + wait_time_ns #resets counter
                 previousValue = not previousValue #value #changes previous value to current value to see if there is a change
                 
         #print("finished event detect, lengh of command = ", len(command), "  command recorded = ")

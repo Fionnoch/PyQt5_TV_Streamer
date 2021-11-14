@@ -99,14 +99,16 @@ class socket_ir:
                 self.pwm.duty_cycle(50)
                 #self.pwm.enable() # no longer used
                 #time.sleep(i) #+1.4e-6) # need to minus time taken to start up 
-                self.event.wait(i)
-                #while perf_counter_ns() <= half_phase_timer: # this is very intensive on the cpu 
-				#    pass #do nothing until the time is reached. N.B the calculations must be done outside the while statement as it slows things down a lot otherwise 
+                #self.event.wait(i)
+                while perf_counter_ns() <= i: # this is very intensive on the cpu 
+                    pass #do nothing until the time is reached. N.B the calculations must be done outside the while statement as it slows things down a lot otherwise 
 
             else:
                 self.pwm.duty_cycle(0)
                 #time.sleep(i) #+1.4e-6)
                 self.event.wait(i)
+                while perf_counter_ns() <= i: # this is very intensive on the cpu 
+                    pass #do nothing until the time is reached. N.B the calculations must be done outside the while statement as it slows things down a lot otherwise 
                 
             alternator = not(alternator)
     
